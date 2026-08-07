@@ -3,15 +3,28 @@ name: Build Android APK
 on:
   push:
     branches: [ "main", "master" ]
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
-      - name: Extract Project ZIP
-        run: unzip -o *.zip
+      - name: Extract Project File
+        run: |
+          # Locate the uploaded archive file
+          TARGET_FILE=$(find . -maxdepth 1 -type f ! -name "README.md" ! -name ".*" | head -n 1)
+          echo "Found project archive: $TARGET_FILE"
+          
+          # Rename to .zip if extension is missing and extract
+          if [[ "$TARGET_FILE" != *.zip ]]; then
+            mv "$TARGET_FILE" project.zip
+            TARGET_FILE="project.zip"
+          fi
+          
+          unzip -o "$TARGET_FILE"
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -19,8 +32,14 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Make gradlew executable
-        run: find . -name "gradlew" -exec chmod +x {} \;
+      - name: Grant Execute Permission for Gradlew
+        run: |
+          GRADLEW_PATH=$(find . -name "gradlew" | head -n 1)
+          if [ -z "$GRADLEW_PATH" ]; then
+            echo "Error: gradlew file not found inside extracted archive!"
+            exit 1
+          fi
+          chmod +x "$GRADLEW_PATH"
 
       - name: Build Debug APK
         run: |

@@ -12,19 +12,23 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Extract Project File
+      - name: Inspect Files and Extract Archive
         run: |
+          echo "=== Root Files ==="
+          ls -la
+          
           # Locate the uploaded archive file
-          TARGET_FILE=$(find . -maxdepth 1 -type f ! -name "README.md" ! -name ".*" | head -n 1)
-          echo "Found project archive: $TARGET_FILE"
+          ARCHIVE=$(find . -maxdepth 1 -type f ! -name "README.md" ! -name ".*" | head -n 1)
+          echo "Found file: $ARCHIVE"
           
-          # Rename to .zip if extension is missing and extract
-          if [[ "$TARGET_FILE" != *.zip ]]; then
-            mv "$TARGET_FILE" project.zip
-            TARGET_FILE="project.zip"
+          if [ -z "$ARCHIVE" ]; then
+            echo "Error: No uploaded archive found in repository root!"
+            exit 1
           fi
-          
-          unzip -o "$TARGET_FILE"
+
+          # Copy file and extract using multiple tools
+          cp "$ARCHIVE" project.zip
+          unzip -o project.zip || 7z x project.zip || tar -xvf project.zip
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -39,6 +43,7 @@ jobs:
             echo "Error: gradlew file not found inside extracted archive!"
             exit 1
           fi
+          echo "Found gradlew at: $GRADLEW_PATH"
           chmod +x "$GRADLEW_PATH"
 
       - name: Build Debug APK
